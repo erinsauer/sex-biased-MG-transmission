@@ -7,16 +7,12 @@
 
 library(deSolve)
 library(tidyverse)
-library(cowplot)
-library(gridGraphics)
-library(gridExtra)
-library(ggpubr)
 
 #beta = transmission coefficient OR average number of infectious contacts
-Bmm <- 0.194444
-Bff <- 0.083333
-Bfe <- 0.111111
-Bme <- 0.121315
+Bmt <- 0.133928571
+Bft <- 0.127513228
+Bf <- 0.1375
+Bm <- 0.335185185
 
 #sigma = is the rate at which exposed individuals become infectious
 sigma.male <- 1/3.66666667
@@ -28,20 +24,14 @@ gamma.female <- 1/11
 
 #mu = mortality rate of infectious individuals
 #zero in controls
-mu.male <- (3/7)/35
-mu.female <- (1/6)/35
-
-#R0 = beta * recovery time
-R0.m <- (Bmm * 21) #4.083324
-R0.f <- (Bff * 11) #0.916663
-#if switched:
-R0.mgf <- (Bmm * 11) #2.138884
+mu.male = -log(1-3/7)/35 
+mu.female = -log(1-1/6)/35
 
 ######### SEIR model ################
 
 SEIR2 <- function(time, current_state, params){
   
-  with(as.list(c(current_state, params)),{ 
+with(as.list(c(current_state, params)),{ 
     N <- S.m+E.m+I.m+R.m+S.f+E.f+I.f+R.f
     dS.m <- -(beta.m*S.m*I.m+
               beta.ft*S.m*I.f)/N
@@ -49,8 +39,7 @@ SEIR2 <- function(time, current_state, params){
                beta.ft*S.m*I.f)/N - sigma.m*E.m
     dI.m <- sigma.m*E.m - gamma.m*I.m - mu.m*I.m
     dR.m <- gamma.m*I.m
-    dM.m <- mu.m*I.m
-    
+    dM.m <- mu.m*I.m    
    
     dS.f <- -(beta.f*S.f*I.f+
               beta.mt*S.f*I.m)/N
@@ -60,7 +49,6 @@ SEIR2 <- function(time, current_state, params){
     dR.f <- gamma.f*I.f
     dM.f <- mu.f*I.f
 
-    
     return(list(c(dS.m, dE.m, dI.m, dR.m, dM.m, dS.f, dE.f, dI.f, dR.f, dM.f)))
   })
 }
@@ -120,6 +108,7 @@ plotn[[i]] <- p
 
 }
 
+#get the plots and model outputs
 plotn.100 <- plotn[[1]]
 plotn.75 <- plotn[[2]]
 plotn.50 <- plotn[[3]]
@@ -131,77 +120,3 @@ model.75 <- modeln[[2]]
 model.50 <- modeln[[3]]
 model.25 <- modeln[[4]]
 model.0 <- modeln[[5]]
-
-# some edits to two plots for the final figure
-plotn.100 <- ggplot(model.100, aes(x = time, y = Individuals)) + 
-  geom_line(aes(color = Parameters)) +
-  theme_bw()+
-  theme(axis.text=element_text(size=13, color="black"),
-        panel.border = element_blank(),
-        axis.title=element_text(size=15),
-        legend.position="none",
-        legend.text= element_blank(),
-        legend.title= element_blank())+
-  ylab("Number of individuals") + xlab("Days")
-
-plotn.50 <- ggplot(model.50, aes(x = time, y = Individuals)) + 
-  geom_line(aes(color = Parameters)) +
-  theme_bw()+
-  theme(axis.text=element_text(size=13, color="black"),
-        panel.border = element_blank(),
-        axis.title=element_text(size=15),
-        legend.position="none",
-        legend.text= element_blank(),
-        legend.title= element_blank())+
-  ylab("Number of individuals") + xlab("Days")
- 
-#making the legend and saving it
- names <- c('Susceptible', 'Exposed', 'Infected', 'Recovered', 'Mortality')
- clrs <- c('#EB86F7', '#F98F89', '#AEB02D', '#36B8F6', '#33C48D')
-L.matrix <- cbind(names, clrs)
- par(mar=c(0, 0, 0, 0))
- plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=c(0,1), ylim=c(0,5))
- legend("left", title="", legend = names, lty=1, lwd=2, cex=1.25,
-        bty='n', col = clrs)
- L <- recordPlot()
- L <- as_grob(L)
- L <- as_ggplot(L)
- L
- ggsave("SEIRLegend.png",
-        width = 2000, height = 2000, units = "px", dpi=300)
-
-#making the rest of the figure and saving it
-blankPlot <- ggplot()+geom_blank(aes(1,1)) + 
-   cowplot::theme_nothing() #+
-
-AB<- ggarrange(plotn.100,plotn.75,blankPlot, ncol=3, nrow=1, 
-               labels=c("A","B",""))
-CDE <- ggarrange(plotn.50,plotn.25,plotn.0, ncol=3, nrow=1, 
-                     labels=c("C","D","E"))
-SEIRfig <- ggarrange(AB,CDE, ncol=1, nrow=2)
-SEIRfig
-ggsave("SEIRfig.png", 
-       width = 3000, height = 2000, units = "px", dpi=300)
-
-
-#save data from the models
-s.model.50 <- s.modeln[[3]]
-summary(s.model.50)
-View(s.model.50)
-write.csv(s.model.50,file="s.model.50.csv")
-s.model.100 <- s.modeln[[1]]
-summary(s.model.100)
-View(s.model.100)
-write.csv(s.model.100,file="s.model.100.csv")
-s.model.0 <- s.modeln[[5]]
-summary(s.model.0)
-View(s.model.0)
-write.csv(s.model.0,file="s.model.0.csv")
-s.model.25 <- s.modeln[[4]]
-summary(s.model.25)
-View(s.model.25)
-write.csv(s.model.25,file="s.model.25.csv")
-s.model.75 <- s.modeln[[2]]
-summary(s.model.75)
-View(s.model.75)
-write.csv(s.model.75,file="s.model.75.csv")
